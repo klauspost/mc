@@ -47,7 +47,7 @@ func checkCopySyntax(ctx context.Context, cliCtx *cli.Context, encKeyDB map[stri
 	for _, srcURL := range srcURLs {
 		_, _, err := url2Stat(ctx, srcURL, false, encKeyDB)
 		if err != nil {
-			console.Fatalf("Unable to validate source %s\n", srcURL)
+			console.Fatalf("Unable to validate source %s: %v\n", srcURL, err)
 		}
 	}
 

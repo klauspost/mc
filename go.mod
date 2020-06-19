@@ -24,6 +24,7 @@ require (
 	github.com/pkg/xattr v0.4.1
 	github.com/posener/complete v1.2.2-0.20190702141536-6ffe496ea953
 	github.com/rjeczalik/notify v0.9.2
+	github.com/tinylib/msgp v1.1.1
 	github.com/ugorji/go v1.1.7 // indirect
 	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6
 	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
@@ -33,3 +34,4 @@ require (
 	gopkg.in/ini.v1 v1.55.0 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 )
+

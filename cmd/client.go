@@ -48,7 +48,11 @@ const defaultMultipartThreadsNum = 4
 type Client interface {
 	// Common operations
 	Stat(ctx context.Context, isIncomplete, isPreserve bool, sse encrypt.ServerSide) (content *ClientContent, err *probe.Error)
+	StatWithOptions(ctx context.Context, isIncomplete, isPreserve bool, opts StatOptions) (content *ClientContent, err *probe.Error)
+
 	List(ctx context.Context, isRecursive, isIncomplete, isFetchMeta bool, showDir DirOpt) <-chan *ClientContent
+
+	Snapshot(ctx context.Context, timeRef time.Time) <-chan *ClientContent
 
 	// Bucket operations
 	MakeBucket(ctx context.Context, region string, ignoreExisting, withLock bool) *probe.Error
@@ -69,6 +73,8 @@ type Client interface {
 
 	// I/O operations with metadata.
 	Get(ctx context.Context, sse encrypt.ServerSide) (reader io.ReadCloser, err *probe.Error)
+	GetWithOptions(ctx context.Context, opts GetOptions) (reader io.ReadCloser, err *probe.Error)
+
 	Put(ctx context.Context, reader io.Reader, size int64, metadata map[string]string, progress io.Reader, sse encrypt.ServerSide, md5, disableMultipart bool) (n int64, err *probe.Error)
 
 	// Object Locking related API
@@ -116,6 +122,9 @@ type ClientContent struct {
 	BypassGovernance  bool
 	LegalHoldEnabled  bool
 	LegalHold         string
+	VersionID         string
+	IsDeleteMarker    bool
+	IsLatest          bool
 
 	Err *probe.Error
 }

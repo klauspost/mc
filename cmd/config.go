@@ -307,6 +307,16 @@ func expandAlias(aliasedURL string) (alias string, urlStr string, hostCfg *hostC
 	if hostCfg = mustGetHostConfig(alias); hostCfg != nil {
 		return alias, urlJoinPath(hostCfg.URL, path), hostCfg, nil
 	}
+
+	snapshots, err := listSnapshots()
+	if err == nil {
+		for _, s := range snapshots {
+			if s.Name() == alias {
+				return alias, aliasedURL, nil, nil
+			}
+		}
+	}
+
 	return "", aliasedURL, nil, nil // No matching entry found. Return original URL as is.
 }
 

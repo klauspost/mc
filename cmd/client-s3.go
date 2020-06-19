@@ -810,12 +810,23 @@ func (c *S3Client) Watch(ctx context.Context, options WatchOptions) (*WatchObjec
 	return wo, nil
 }
 
-// Get - get object with metadata.
+type GetOptions struct {
+	sse       encrypt.ServerSide
+	versionID string
+}
+
 func (c *S3Client) Get(ctx context.Context, sse encrypt.ServerSide) (io.ReadCloser, *probe.Error) {
+	return c.GetWithOptions(ctx, GetOptions{sse: sse})
+}
+
+// Get - get object with metadata.
+func (c *S3Client) GetWithOptions(ctx context.Context, opts GetOptions) (io.ReadCloser, *probe.Error) {
 	bucket, object := c.url2BucketAndObject()
-	opts := minio.GetObjectOptions{}
-	opts.ServerSideEncryption = sse
-	reader, e := c.api.GetObjectWithContext(ctx, bucket, object, opts)
+	mOpts := minio.GetObjectOptions{
+		ServerSideEncryption: opts.sse,
+		VersionID:            opts.versionID,
+	}
+	reader, e := c.api.GetObjectWithContext(ctx, bucket, object, mOpts)
 	if e != nil {
 		errResponse := minio.ToErrorResponse(e)
 		if errResponse.Code == "NoSuchBucket" {
@@ -1366,6 +1377,10 @@ func (c *S3Client) statIncompleteUpload(ctx context.Context, bucket, object stri
 // Stat - send a 'HEAD' on a bucket or object to fetch its metadata. It also returns
 // a DIR type content if a prefix does exist in the server.
 func (c *S3Client) Stat(ctx context.Context, isIncomplete, isPreserve bool, sse encrypt.ServerSide) (*ClientContent, *probe.Error) {
+	return c.StatWithOptions(ctx, isIncomplete, isPreserve, StatOptions{sse: sse})
+}
+
+func (c *S3Client) StatWithOptions(ctx context.Context, isIncomplete, isPreserve bool, opts StatOptions) (*ClientContent, *probe.Error) {
 	c.Lock()
 	defer c.Unlock()
 	bucket, object := c.url2BucketAndObject()
@@ -1396,13 +1411,13 @@ func (c *S3Client) Stat(ctx context.Context, isIncomplete, isPreserve bool, sse 
 	//     - /path/to/empty_directory
 	//     - /path/to/empty_directory/
 
-	opts := minio.StatObjectOptions{}
-	opts.ServerSideEncryption = sse
+	mopts := minio.StatObjectOptions{}
+	mopts.ServerSideEncryption = opts.sse
 
 	if !strings.HasSuffix(object, string(c.targetURL.Separator)) {
 		// Issue HEAD request first but ignore no such key error
 		// so we can check if there is such prefix which exists
-		ctnt, err := c.getObjectStat(ctx, bucket, object, opts)
+		ctnt, err := c.getObjectStat(ctx, bucket, object, mopts)
 		if err == nil {
 			return ctnt, err
 		}
@@ -1546,6 +1561,65 @@ func (c *S3Client) splitPath(path string) (bucketName, objectName string) {
 }
 
 /// Bucket API operations.
+func (c *S3Client) Snapshot(ctx context.Context, timeRef time.Time) <-chan *ClientContent {
+	contentCh := make(chan *ClientContent)
+	go c.snapshot(ctx, timeRef, contentCh)
+	return contentCh
+}
+
+func (c *S3Client) snapshot(ctx context.Context, timeRef time.Time, contentCh chan *ClientContent) {
+	defer close(contentCh)
+
+	if timeRef.IsZero() {
+		contentCh <- &ClientContent{
+			Err: probe.NewError(errors.New("time reference should be provided")),
+		}
+		return
+	}
+
+	b, o := c.url2BucketAndObject()
+
+	var buckets []string
+	if b == "" {
+		bucketsInfo, err := c.api.ListBucketsWithContext(ctx)
+		if err != nil {
+			contentCh <- &ClientContent{
+				Err: probe.NewError(err),
+			}
+			return
+		}
+		for _, b := range bucketsInfo {
+			buckets = append(buckets, b.Name)
+		}
+	} else {
+		buckets = append(buckets, b)
+	}
+
+	for _, b := range buckets {
+		var skipKey string
+
+		doneCh := make(chan struct{})
+		for objectVersion := range c.api.ListObjectVersions(b, o, true, doneCh) {
+			if objectVersion.Err != nil {
+				contentCh <- &ClientContent{
+					Err: probe.NewError(objectVersion.Err),
+				}
+				return
+			}
+
+			if skipKey == objectVersion.Key {
+				// A good version with the same key name
+				// has already been sent to the caller
+				continue
+			}
+
+			if objectVersion.LastModified.Before(timeRef) {
+				contentCh <- c.objectVersionInfo2ClientContent(b, objectVersion)
+				skipKey = objectVersion.Key
+			}
+		}
+	}
+}
 
 // List - list at delimited path, if not recursive.
 func (c *S3Client) List(ctx context.Context, isRecursive, isIncomplete, isMetadata bool, showDir DirOpt) <-chan *ClientContent {
@@ -1869,6 +1943,30 @@ func (c *S3Client) objectInfo2ClientContent(bucket string, entry minio.ObjectInf
 	}
 
 	return content
+}
+
+// Convert objectVersionInfo to ClientContent
+func (c *S3Client) objectVersionInfo2ClientContent(bucket string, entry minio.ObjectVersionInfo) *ClientContent {
+	content := ClientContent{}
+	url := c.targetURL.Clone()
+	// Join bucket and incoming object key.
+	url.Path = c.joinPath(bucket, entry.Key)
+	content.URL = url
+	content.VersionID = entry.VersionID
+	content.StorageClass = entry.StorageClass
+	content.IsDeleteMarker = entry.IsDeleteMarker
+	content.IsLatest = entry.IsLatest
+	content.Size = entry.Size
+	content.ETag = entry.ETag
+	content.Time = entry.LastModified
+	if strings.HasSuffix(entry.Key, string(c.targetURL.Separator)) && entry.Size == 0 && entry.LastModified.IsZero() {
+		content.Type = os.ModeDir
+		content.Time = time.Now()
+	} else {
+		content.Type = os.FileMode(0664)
+	}
+
+	return &content
 }
 
 // Returns bucket stat info of current bucket.

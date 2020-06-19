@@ -419,6 +419,10 @@ func (f *fsClient) Get(ctx context.Context, sse encrypt.ServerSide) (io.ReadClos
 	return fileData, nil
 }
 
+func (f *fsClient) GetWithOptions(ctx context.Context, _ GetOptions) (io.ReadCloser, *probe.Error) {
+	return f.Get(ctx, nil)
+}
+
 // Check if the given error corresponds to ENOTEMPTY for unix
 // and ERROR_DIR_NOT_EMPTY for windows (directory not empty).
 func isSysErrNotEmpty(err error) bool {
@@ -500,6 +504,16 @@ func (f *fsClient) Remove(ctx context.Context, isIncomplete, isRemoveBucket, isB
 	}()
 
 	return errorCh
+}
+
+func (f *fsClient) Snapshot(ctx context.Context, timeRef time.Time) <-chan *ClientContent {
+	contentCh := make(chan *ClientContent, 1)
+	contentCh <- &ClientContent{Err: probe.NewError(APINotImplemented{
+		API:     "SetObjectLockConfig",
+		APIType: "filesystem",
+	})}
+	close(contentCh)
+	return contentCh
 }
 
 // List - list files and folders.
@@ -984,6 +998,13 @@ func (f *fsClient) SetAccess(ctx context.Context, access string, isJSON bool) *p
 		return probe.NewError(e)
 	}
 	return nil
+}
+
+func (f *fsClient) StatWithOptions(ctx context.Context, _, _ bool, _ StatOptions) (*ClientContent, *probe.Error) {
+	return nil, probe.NewError(APINotImplemented{
+		API:     "StatWithOptions",
+		APIType: "filesystem",
+	})
 }
 
 // Stat - get metadata from path.

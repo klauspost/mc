@@ -143,7 +143,6 @@ func mainList(cliCtx *cli.Context) error {
 				fatalIf(err.Trace(targetURL), "Unable to initialize target `"+targetURL+"`.")
 			}
 		}
-
 		if e := doList(ctx, clnt, isRecursive, isIncomplete); e != nil {
 			cErr = e
 		}

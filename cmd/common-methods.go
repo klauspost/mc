@@ -148,7 +148,7 @@ func getSourceStreamMetadataFromURL(ctx context.Context, urlStr string, encKeyDB
 		return nil, nil, err.Trace(urlStr)
 	}
 	sseKey := getSSE(urlStr, encKeyDB[alias])
-	return getSourceStream(ctx, alias, urlStrFull, true, sseKey, false)
+	return getSourceStream(ctx, alias, urlStrFull, "", true, sseKey, false)
 }
 
 // getSourceStreamFromURL gets a reader from URL.
@@ -158,7 +158,7 @@ func getSourceStreamFromURL(ctx context.Context, urlStr string, encKeyDB map[str
 		return nil, err.Trace(urlStr)
 	}
 	sse := getSSE(urlStr, encKeyDB[alias])
-	reader, _, err = getSourceStream(ctx, alias, urlStrFull, false, sse, false)
+	reader, _, err = getSourceStream(ctx, alias, urlStrFull, "", false, sse, false)
 	return reader, err
 }
 
@@ -210,12 +210,12 @@ func isReadAt(reader io.Reader) (ok bool) {
 }
 
 // getSourceStream gets a reader from URL.
-func getSourceStream(ctx context.Context, alias string, urlStr string, fetchStat bool, sse encrypt.ServerSide, preserve bool) (reader io.ReadCloser, metadata map[string]string, err *probe.Error) {
+func getSourceStream(ctx context.Context, alias string, urlStr string, versionID string, fetchStat bool, sse encrypt.ServerSide, preserve bool) (reader io.ReadCloser, metadata map[string]string, err *probe.Error) {
 	sourceClnt, err := newClientFromAlias(alias, urlStr)
 	if err != nil {
 		return nil, nil, err.Trace(alias, urlStr)
 	}
-	reader, err = sourceClnt.Get(ctx, sse)
+	reader, err = sourceClnt.GetWithOptions(ctx, GetOptions{versionID: versionID, sse: sse})
 	if err != nil {
 		return nil, nil, err.Trace(alias, urlStr)
 	}
@@ -397,6 +397,7 @@ func getAllMetadata(ctx context.Context, sourceAlias, sourceURLStr string, srcSS
 func uploadSourceToTargetURL(ctx context.Context, urls URLs, progress io.Reader, encKeyDB map[string][]prefixSSEPair, preserve bool) URLs {
 	sourceAlias := urls.SourceAlias
 	sourceURL := urls.SourceContent.URL
+	sourceVersionID := urls.SourceContent.VersionID
 	targetAlias := urls.TargetAlias
 	targetURL := urls.TargetContent.URL
 	length := urls.SourceContent.Size
@@ -495,7 +496,7 @@ func uploadSourceToTargetURL(ctx context.Context, urls URLs, progress io.Reader,
 		}
 		var reader io.ReadCloser
 		// Proceed with regular stream copy.
-		reader, metadata, err = getSourceStream(ctx, sourceAlias, sourceURL.String(), true, srcSSE, preserve)
+		reader, metadata, err = getSourceStream(ctx, sourceAlias, sourceURL.String(), sourceVersionID, true, srcSSE, preserve)
 		if err != nil {
 			return urls.WithError(err.Trace(sourceURL.String()))
 		}
@@ -538,6 +539,10 @@ func newClientFromAlias(alias, urlStr string) (Client, *probe.Error) {
 	}
 
 	if hostCfg == nil {
+		if alias != "" {
+			return snapNew(alias, urlStr)
+		}
+
 		// No matching host config. So we treat it like a
 		// filesystem.
 		fsClient, fsErr := fsNew(urlStr)
@@ -561,6 +566,7 @@ var urlRgx = regexp.MustCompile("^https?://")
 
 // newClient gives a new client interface
 func newClient(aliasedURL string) (Client, *probe.Error) {
+
 	alias, urlStrFull, hostCfg, err := expandAlias(aliasedURL)
 	if err != nil {
 		return nil, err.Trace(aliasedURL)
@@ -570,5 +576,6 @@ func newClient(aliasedURL string) (Client, *probe.Error) {
 	if hostCfg == nil && urlRgx.MatchString(aliasedURL) {
 		return nil, errInvalidAliasedURL(aliasedURL).Trace(aliasedURL)
 	}
+
 	return newClientFromAlias(alias, urlStrFull)
 }

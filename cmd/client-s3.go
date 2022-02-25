@@ -480,14 +480,6 @@ func (c *S3Client) ListNotificationConfigs(ctx context.Context, arn string) ([]N
 	return configs, nil
 }
 
-// Supported content types
-var supportedContentTypes = []string{
-	"csv",
-	"json",
-	"gzip",
-	"bzip2",
-}
-
 // set the SelectObjectOutputSerialization struct using options passed in by client. If unspecified,
 // default S3 API specified defaults
 func selectObjectOutputOpts(selOpts SelectObjectOpts, i minio.SelectObjectInputSerialization) minio.SelectObjectOutputSerialization {

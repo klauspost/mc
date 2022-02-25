@@ -434,6 +434,14 @@ func checkSQLSyntax(ctx *cli.Context) {
 	}
 }
 
+// Supported select content types
+var supportedContentTypes = []string{
+	"csv",
+	"json",
+	"gzip",
+	"bzip2",
+}
+
 // mainSQL is the main entry point for sql command.
 func mainSQL(cliCtx *cli.Context) error {
 	ctx, cancelSQL := context.WithCancel(globalContext)
@@ -472,7 +480,7 @@ func mainSQL(cliCtx *cli.Context) error {
 			continue
 		}
 
-		for content := range clnt.List(ctx, ListOptions{Recursive: cliCtx.Bool("recursive"), ShowDir: DirNone}) {
+		for content := range clnt.List(ctx, ListOptions{Recursive: cliCtx.Bool("recursive"), ShowDir: DirNone, WithMetadata: true}) {
 			if content.Err != nil {
 				errorIf(content.Err.Trace(url), "Unable to list on target `"+url+"`.")
 				continue
@@ -480,9 +488,11 @@ func mainSQL(cliCtx *cli.Context) error {
 			if writeHdr {
 				query, csvHdrs, selOpts = getAndValidateArgs(cliCtx, encKeyDB, targetAlias+content.URL.Path)
 			}
+
 			contentType := mimedb.TypeByExtension(filepath.Ext(content.URL.Path))
+			contentTypeMeta := content.Metadata["Content-Type"]
 			for _, cTypeSuffix := range supportedContentTypes {
-				if strings.Contains(contentType, cTypeSuffix) {
+				if strings.HasSuffix(contentType, cTypeSuffix) || strings.HasSuffix(contentTypeMeta, cTypeSuffix) {
 					errorIf(sqlSelect(targetAlias+content.URL.Path, query,
 						encKeyDB, selOpts, csvHdrs, writeHdr).Trace(content.URL.String()), "Unable to run sql")
 				}

@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2021 MinIO, Inc.
+// Copyright (c) 2015-2022 MinIO, Inc.
 //
 // This file is part of MinIO Object Storage stack
 //
@@ -17,32 +17,31 @@
 
 package cmd
 
-import (
-	"github.com/minio/cli"
-	"github.com/minio/pkg/console"
-)
+import "github.com/minio/cli"
 
-var policyFlags = []cli.Flag{
-	cli.BoolFlag{
-		Name:  "recursive, r",
-		Usage: "list recursively",
-	},
+var batchSubcommands = []cli.Command{
+	batchGenerateCmd,
+	batchStartCmd,
+	batchListCmd,
+	batchStatusCmd,
+	batchDescribeCmd,
+	// batchSuspendResumeCmd,
+	// batchStopCmd,
 }
 
-// Manage anonymous access to buckets and objects.
-var policyCmd = cli.Command{
-	Name:         "policy",
-	Usage:        "manage anonymous access to buckets and objects",
-	Action:       mainPolicy,
-	Hidden:       true,
-	OnUsageError: onUsageError,
-	Before:       setGlobalsFromContext,
-	Flags:        append(policyFlags, globalFlags...),
-	CustomHelpTemplate: `Please use 'mc anonymous'
-`,
+var batchCmd = cli.Command{
+	Name:            "batch",
+	Usage:           "manage batch jobs",
+	Action:          mainBatch,
+	Before:          setGlobalsFromContext,
+	Flags:           globalFlags,
+	Subcommands:     batchSubcommands,
+	HideHelpCommand: true,
 }
 
-func mainPolicy(ctx *cli.Context) error {
-	console.Infoln("Please use 'mc anonymous'")
+// mainBatch is the handle for "mc batch" command.
+func mainBatch(ctx *cli.Context) error {
+	commandNotFound(ctx, batchSubcommands)
 	return nil
+	// Sub-commands like "generate", "list", "info" have their own main.
 }

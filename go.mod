@@ -32,7 +32,7 @@ require (
 	github.com/prometheus/prom2json v1.3.1
 	github.com/rjeczalik/notify v0.9.2
 	github.com/rs/xid v1.4.0
-	github.com/secure-io/sio-go v0.3.1
+	github.com/secure-io/sio-go v0.3.1 // indirect
 	github.com/shirou/gopsutil/v3 v3.22.7
 	github.com/tidwall/gjson v1.12.1
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
@@ -53,7 +53,6 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/prometheus/client_model v0.2.0
 	github.com/rivo/tview v0.0.0-20211202162923-2a6de950f73b
-	github.com/tinylib/msgp v1.1.7-0.20211026165309-e818a1881b0e
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 )
 
@@ -99,6 +98,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/tinylib/msgp v1.1.7-0.20211026165309-e818a1881b0e // indirect
 	github.com/tklauser/go-sysconf v0.3.10 // indirect
 	github.com/tklauser/numcpus v0.4.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
@@ -108,12 +108,12 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
+	golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec // indirect
 	google.golang.org/genproto v0.0.0-20220302033224-9aa15565e42a // indirect
 	google.golang.org/grpc v1.44.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/ini.v1 v1.66.6 // indirect
 )
 
-replace github.com/minio/madmin-go => ../madmin-go
+replace github.com/minio/madmin-go => github.com/klauspost/madmin-go v1.0.15-0.20221012163854-fd15cf0ad215
